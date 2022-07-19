@@ -1,0 +1,26 @@
+name: delete
+
+on: workflow_dispatch
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  REGION: us-east-1
+
+jobs:
+  delete:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@master
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.IAM_ROLE_ARN }}
+          aws-region: ${{ env.REGION }}
+
+      - name: Delete Stack
+        run: sam delete --region $REGION --no-prompts

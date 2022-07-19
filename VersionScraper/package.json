@@ -1,0 +1,27 @@
+{
+  "name": "minecraft-server-data-scraper",
+  "version": "1.0.0",
+  "description": "Find the download URL for a Minecraft Server jar",
+  "main": "Scraper.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Smarter-Servers/minecraft-server.git"
+  },
+  "author": {
+    "name": "cal-overflow",
+    "url": "https://www.cal-overflow.dev"
+  },
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Smarter-Servers/minecraft-server/issues"
+  },
+  "homepage": "https://github.com/Smarter-Servers/minecraft-server#readme",
+  "dependencies": {
+    "node-fetch": "^3.2.8"
+  },
+  "type": "module"
+}

@@ -1,0 +1,7 @@
+version=0.1
+
+[default.deploy.parameters]
+stack_name = "minecraft-server"
+confirm_changeset = false
+fail_on_empty_changeset = false
+capabilities = "CAPABILITY_IAM"

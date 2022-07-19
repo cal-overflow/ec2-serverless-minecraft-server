@@ -1,0 +1,125 @@
+name: deploy
+
+on: [push, workflow_dispatch]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  REGION: us-east-1
+  KEY_PAIR: minecraft-server-key-pair
+  KEY_FILE: key-pair.pem
+  SERVER_VERSION: 'latest' # Optionally, you can change this to a specific version (i.e., "1.18")
+
+jobs:
+  get-server-jar-url:
+    runs-on: ubuntu-latest
+    outputs:
+      SERVER_JAR_URL: ${{ steps.get_download_url.outputs.SERVER_JAR_URL }}
+      TARGET_VERSION: ${{ steps.get_download_url.outputs.TARGET_VERSION }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@master
+
+      - name: Setup node
+        uses: actions/setup-node@master
+        with:
+          node-version: "16.14.2"
+
+      - name: install dependencies
+        working-directory: VersionScraper
+        run: npm install
+      
+      - name: Find Download URL
+        id: get_download_url
+        working-directory: VersionScraper
+        run: |
+          npm start
+          echo ::set-output name=SERVER_JAR_URL::$(cat url.txt)
+          echo ::set-output name=TARGET_VERSION::$(cat targetVersion.txt)
+  
+  deploy:
+    needs: get-server-jar-url
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@master
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.IAM_ROLE_ARN }}
+          aws-region: ${{ env.REGION }}
+
+      - name: Deploy Stack
+        run: sam deploy --region $REGION --parameter-overrides KeyPair=$KEY_PAIR
+      
+      - name: Start server
+        env:
+          SERVER_JAR_URL: ${{ needs.get-server-jar-url.outputs.SERVER_JAR_URL }}
+          TARGET_VERSION: ${{ needs.get-server-jar-url.outputs.TARGET_VERSION }}
+        run: |
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ${{ env.KEY_FILE }}
+          chmod 600 ${{ env.KEY_FILE }}
+
+          EC2_IP_ADDRESS=$(aws cloudformation describe-stacks --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`IPAddress`].OutputValue' --output text)
+          EC2_INSTANCE_ID=$(aws ec2 describe-instances --region $REGION --filters "Name=ip-address,Values=$EC2_IP_ADDRESS" --query "Reservations[*].Instances[*].[InstanceId]" --output text)
+          EC2_INSTANCE_STATUS=$(aws ec2 describe-instance-status --region $REGION --instance-id $EC2_INSTANCE_ID --query "InstanceStatuses[?InstanceId=='$EC2_INSTANCE_ID'].InstanceState.Name" --output text)
+
+          until [ "$EC2_INSTANCE_STATUS" == "running" ]; do
+            echo "Starting EC2 Instance..."
+            aws ec2 start-instances --instance-ids $EC2_INSTANCE_ID
+            sleep 30
+            EC2_INSTANCE_STATUS=$(aws ec2 describe-instance-status --region $REGION --instance-id $EC2_INSTANCE_ID --query "InstanceStatuses[?InstanceId=='$EC2_INSTANCE_ID'].InstanceState.Name" --output text)
+          done
+
+          if [ -d "assets" ]; then
+            echo "Copying assets to server"
+            rsync -e "ssh -i $KEY_FILE -o StrictHostKeyChecking=no" -r assets/ ubuntu@$EC2_IP_ADDRESS:server
+          fi
+
+          ssh -i $KEY_FILE -o "StrictHostKeyChecking no" ubuntu@$EC2_IP_ADDRESS "
+          if [ ! -d "server" ]; then
+            mkdir server
+          fi
+
+          cd server
+
+
+          if screen -list | grep -q "server"; then
+            echo "Detected server is already running"
+
+            if cat currentVersion.txt | grep -q "${TARGET_VERSION}"; then
+              echo "Target version "${TARGET_VERSION}" already installed."
+              export IS_CURRENT_TARGET=true
+            fi
+
+            while screen -list | grep -q "server"; do
+              echo "Stopping server..."
+              screen -S server -X stuff 'stop\nexit\n'
+              sleep 10
+            done
+            echo "Server stopped"
+          fi
+
+          echo "Ensuring dependencies are installed and up to date"
+          sudo apt-get update
+          sudo apt-get upgrade -y
+          sudo apt-get install openjdk-17-jre-headless -y
+
+          if ! [ "$IS_CURRENT_TARGET" = "true" ]; then
+            rm -f server.jar
+
+            echo "Downloading ${TARGET_VERSION} server jar"
+            curl ${{ env.SERVER_JAR_URL }} -o server.jar
+
+            echo eula=true > eula.txt
+            echo "" > screen.logs # reset logs
+            echo "${TARGET_VERSION}" > currentVersion.txt
+          fi
+
+          echo "Starting server"
+          screen -dmS "server" -L -Logfile screen.logs java -Xmx1024M -Xms1024M -jar server.jar nogui
+          "
+
