@@ -1,10 +1,14 @@
-name: deploy
+name: Deploy & start server
 
-on: [push, workflow_dispatch]
+on: 
+  push:
+    branches: ['main']
+  workflow_dispatch:
 
 permissions:
   id-token: write
   contents: read
+  deployments: write
 
 env:
   REGION: us-east-1
@@ -42,6 +46,8 @@ jobs:
   deploy:
     needs: get-server-jar-url
     runs-on: ubuntu-latest
+    outputs:
+      SERVER_IP_ADDRESS: ${{ steps.deploy-server.outputs.SERVER_IP }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@master
@@ -52,18 +58,39 @@ jobs:
           role-to-assume: ${{ secrets.IAM_ROLE_ARN }}
           aws-region: ${{ env.REGION }}
 
-      - name: Deploy Stack
-        run: sam deploy --region $REGION --parameter-overrides KeyPair=$KEY_PAIR
-      
+      - name: Deploy Server (AWS Stack)
+        id: deploy-server
+        run: |
+          sam deploy --region $REGION --parameter-overrides KeyPair=$KEY_PAIR
+
+          EC2_IP_ADDRESS=$(aws cloudformation describe-stacks --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`IPAddress`].OutputValue' --output text)
+          echo "::set-output name=SERVER_IP::$EC2_IP_ADDRESS"
+
+  start:
+    needs: [get-server-jar-url, deploy]
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ needs.deploy.outputs.SERVER_IP_ADDRESS }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@master
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.IAM_ROLE_ARN }}
+          aws-region: ${{ env.REGION }}
+
       - name: Start server
+        id: start-server
         env:
           SERVER_JAR_URL: ${{ needs.get-server-jar-url.outputs.SERVER_JAR_URL }}
           TARGET_VERSION: ${{ needs.get-server-jar-url.outputs.TARGET_VERSION }}
+          EC2_IP_ADDRESS: ${{ needs.deploy.outputs.SERVER_IP_ADDRESS }}
         run: |
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ${{ env.KEY_FILE }}
           chmod 600 ${{ env.KEY_FILE }}
 
-          EC2_IP_ADDRESS=$(aws cloudformation describe-stacks --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`IPAddress`].OutputValue' --output text)
           EC2_INSTANCE_ID=$(aws ec2 describe-instances --region $REGION --filters "Name=ip-address,Values=$EC2_IP_ADDRESS" --query "Reservations[*].Instances[*].[InstanceId]" --output text)
           EC2_INSTANCE_STATUS=$(aws ec2 describe-instance-status --region $REGION --instance-id $EC2_INSTANCE_ID --query "InstanceStatuses[?InstanceId=='$EC2_INSTANCE_ID'].InstanceState.Name" --output text)
 
@@ -108,7 +135,7 @@ jobs:
           sudo apt-get upgrade -y
           sudo apt-get install openjdk-17-jre-headless -y
 
-          if ! [ "$IS_CURRENT_TARGET" = "true" ]; then
+          if ! [ \"${IS_CURRENT_TARGET}\" = "true" ]; then
             rm -f server.jar
 
             echo "Downloading ${TARGET_VERSION} server jar"
@@ -122,4 +149,3 @@ jobs:
           echo "Starting server"
           screen -dmS "server" -L -Logfile screen.logs java -Xmx1024M -Xms1024M -jar server.jar nogui
           "
-

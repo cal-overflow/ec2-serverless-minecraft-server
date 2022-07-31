@@ -1,0 +1,74 @@
+name: Stop server
+
+on: workflow_dispatch
+
+permissions:
+  id-token: write
+  contents: read
+  deployments: write
+
+env:
+  REGION: us-east-1
+  KEY_FILE: key-pair.pem
+
+jobs:
+  shutdown:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.IAM_ROLE_ARN }}
+          aws-region: ${{ env.REGION }}
+
+      - name: Get Server IP
+        id: get-server-ip
+        run: |
+          EC2_IP_ADDRESS=$(aws cloudformation describe-stacks --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`IPAddress`].OutputValue' --output text)
+          echo "::set-output name=SERVER_IP::$EC2_IP_ADDRESS"
+
+      - uses: chrnorm/deployment-action@v2
+        name: Create GitHub deployment
+        id: deployment
+        with:
+          token: '${{ github.token }}'
+          environment: ${{ steps.get-server-ip.outputs.SERVER_IP }}
+          description: 'Shutting down server'
+
+      - name: Shutdown server
+        env:
+          EC2_IP_ADDRESS: ${{ steps.get-server-ip.outputs.SERVER_IP }}
+        run: |
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ${{ env.KEY_FILE }}
+          chmod 600 ${{ env.KEY_FILE }}
+
+          ssh -i $KEY_FILE -o "StrictHostKeyChecking no" ubuntu@$EC2_IP_ADDRESS "
+          cd server
+
+          if screen -list | grep -q "server"; then
+            while screen -list | grep -q "server"; do
+              echo "Stopping server..."
+              screen -S server -X stuff 'stop\nexit\n'
+              sleep 10
+            done
+            echo "Server stopped"
+          fi
+
+          echo "Shutting down EC2 instance"
+          sudo shutdown now
+          " || SSH_EXIT_CODE=$?
+
+          if [ "${SSH_EXIT_CODE}" == "255" ]; then
+            echo "Server shutdown successfully"
+            exit 0
+          fi
+
+          exit $SSH_EXIT_CODE
+
+      - name: Set GitHub environment status (show the server is inactive on GitHub)
+        uses: chrnorm/deployment-status@v2
+        with:
+          token: '${{ github.token }}'
+          state: 'inactive'
+          environment: ${{ steps.get-server-ip.outputs.SERVER_IP }}
+          deployment-id: ${{ steps.deployment.outputs.deployment_id }}

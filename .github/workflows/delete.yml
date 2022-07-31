@@ -1,17 +1,20 @@
-name: delete
+name: Delete server
 
 on: workflow_dispatch
 
 permissions:
   id-token: write
   contents: read
+  deployments: write
 
 env:
   REGION: us-east-1
 
 jobs:
-  delete:
+  get-server-ip:
     runs-on: ubuntu-latest
+    outputs:
+      SERVER_IP_ADDRESS: ${{ steps.get-server-ip-address.outputs.SERVER_IP }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@master
@@ -22,5 +25,42 @@ jobs:
           role-to-assume: ${{ secrets.IAM_ROLE_ARN }}
           aws-region: ${{ env.REGION }}
 
+      - name: Get Server IP
+        id: get-server-ip-address
+        run: |
+          EC2_IP_ADDRESS=$(aws cloudformation describe-stacks --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`IPAddress`].OutputValue' --output text)
+          echo "::set-output name=SERVER_IP::$EC2_IP_ADDRESS"
+
+  delete:
+    needs: get-server-ip
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ needs.get-server-ip.outputs.SERVER_IP_ADDRESS }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@master
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: ${{ secrets.IAM_ROLE_ARN }}
+          aws-region: ${{ env.REGION }}
+
+      - uses: chrnorm/deployment-action@v2
+        name: Create GitHub deployment
+        id: deployment
+        with:
+          token: '${{ github.token }}'
+          environment: ${{ needs.get-server-ip.outputs.SERVER_IP_ADDRESS }}
+          description: 'Deleting server'
+
       - name: Delete Stack
         run: sam delete --region $REGION --no-prompts
+
+      - name: Set GitHub environment status (show the server is inactive on GitHub)
+        uses: chrnorm/deployment-status@v2
+        with:
+          token: '${{ github.token }}'
+          state: 'inactive'
+          environment: ${{ needs.get-server-ip.outputs.SERVER_IP_ADDRESS }}
+          deployment-id: ${{ steps.deployment.outputs.deployment_id }}
