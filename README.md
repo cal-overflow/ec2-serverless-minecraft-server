@@ -28,12 +28,12 @@ Add the following secrets via **Repository settings** > **Secrets** > **Actions*
   - `SSH_PRIVATE_KEY` containing the value inside the keyfile generated in step 2.
 
 ### 4. Trigger a deploy (and start the server)
-Mnually trigger the **deploy** workflow in the **actions** tab on the repository.
+Manually trigger the **deploy & start server** workflow in the **actions** tab on the repository.
 
 ### 5. Connecting to the ec2 instance after deploy
 You may SSH into the EC2 instance using the KeyPair from step 2. Refer to the EC2 docs for [connecting to an EC2 instance using SSH](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AccessingInstancesLinux.html).
 
-In the event that you no longer have your keyfile (from step 2) on your computer, you can still execute commands on the server by altering the last step of the "Start" job in [`./github/workflows/deploy.yml`](.github/workflows/deploy.yml#L69).
+In the event that you no longer have your keyfile (from step 2) on your computer, you can still execute commands on the server by altering the "start" function inside [`manager.sh`](manager.sh) and running the *deploy & start server* workflow.
 
 ## How to make changes to your server
 You may add assets in the `assets` directory that will be automatically copied to the EC2 instance.
@@ -44,13 +44,13 @@ For example, to add a custom [`server.properties`](https://minecraft.fandom.com/
 ---
 ## GitHub Action workflows
 
-### Starting the server
+#### Starting the server
 As mentioned in the steps above, you may trigger the *Deploy & Start Server* workflow via pushing changes. Alternatively, you may trigger a deploy by running the *Deploy & Start Server* worklow from within the **Actions** tab.
 
 #### Stopping the server
 If you would like to stop the server from running, but would like to keep your data and Cloudformation stack saved, you can stop the server. Stop the server by running the *Shutdown* workflow from within the **Actions** tab.
 
-#### Deleting your server
+#### Deleting the server
 If you want to delete the Cloudformation stack from AWS entirely, simply run the *Delete* workflow from within the **Actions** tab. \
 **NOTE: This will permanently delete the files for the Minecraft server/world**.
 

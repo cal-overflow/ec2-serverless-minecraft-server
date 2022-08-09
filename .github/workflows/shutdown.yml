@@ -43,16 +43,7 @@ jobs:
           chmod 600 ${{ env.KEY_FILE }}
 
           ssh -i $KEY_FILE -o "StrictHostKeyChecking no" ubuntu@$EC2_IP_ADDRESS "
-          cd server
-
-          if screen -list | grep -q "server"; then
-            while screen -list | grep -q "server"; do
-              echo "Stopping server..."
-              screen -S server -X stuff 'stop\nexit\n'
-              sleep 10
-            done
-            echo "Server stopped"
-          fi
+          ./manager.sh stop
 
           echo "Shutting down EC2 instance"
           sudo shutdown now

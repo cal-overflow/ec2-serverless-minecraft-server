@@ -101,51 +101,21 @@ jobs:
             EC2_INSTANCE_STATUS=$(aws ec2 describe-instance-status --region $REGION --instance-id $EC2_INSTANCE_ID --query "InstanceStatuses[?InstanceId=='$EC2_INSTANCE_ID'].InstanceState.Name" --output text)
           done
 
+          echo "Copying script (manager.sh) to server"
+          rsync -e "ssh -i $KEY_FILE -o StrictHostKeyChecking=no" manager.sh ubuntu@$EC2_IP_ADDRESS:~/.
+
           if [ -d "assets" ]; then
             echo "Copying assets to server"
             rsync -e "ssh -i $KEY_FILE -o StrictHostKeyChecking=no" -r assets/ ubuntu@$EC2_IP_ADDRESS:server
           fi
 
           ssh -i $KEY_FILE -o "StrictHostKeyChecking no" ubuntu@$EC2_IP_ADDRESS "
-          if [ ! -d "server" ]; then
-            mkdir server
-          fi
+          export TARGET_VERSION=${TARGET_VERSION}
+          export SERVER_JAR_URL=${{ env.SERVER_JAR_URL }}
+          
+          chmod +x manager.sh
 
-          cd server
-
-
-          if screen -list | grep -q "server"; then
-            echo "Detected server is already running"
-
-            if cat currentVersion.txt | grep -q "${TARGET_VERSION}"; then
-              echo "Target version "${TARGET_VERSION}" already installed."
-              export IS_CURRENT_TARGET=true
-            fi
-
-            while screen -list | grep -q "server"; do
-              echo "Stopping server..."
-              screen -S server -X stuff 'stop\nexit\n'
-              sleep 10
-            done
-            echo "Server stopped"
-          fi
-
-          echo "Ensuring dependencies are installed and up to date"
-          sudo apt-get update
-          sudo apt-get upgrade -y
-          sudo apt-get install openjdk-17-jre-headless -y
-
-          if ! [ \"${IS_CURRENT_TARGET}\" = "true" ]; then
-            rm -f server.jar
-
-            echo "Downloading ${TARGET_VERSION} server jar"
-            curl ${{ env.SERVER_JAR_URL }} -o server.jar
-
-            echo eula=true > eula.txt
-            echo "" > screen.logs # reset logs
-            echo "${TARGET_VERSION}" > currentVersion.txt
-          fi
-
-          echo "Starting server"
-          screen -dmS "server" -L -Logfile screen.logs java -Xmx1024M -Xms1024M -jar server.jar nogui
+          ./manager.sh setup
+          ./manager.sh start
+          ./manager.sh startAutoShutdown
           "
