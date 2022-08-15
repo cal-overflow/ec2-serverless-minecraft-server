@@ -5,7 +5,7 @@ Easily deploy a Java Minecraft server to an AWS EC2 instance.
 By default, the deploy will find and install Minecraft's latest release. You can specify an exact version by editing the `SERVER_VERSION` environment variable in [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml#L17).
 
 #### Change the server location
-By default, the deploy will deploy your server in the `us-east-1` AWS region. You may change the location of your instance by updating the `REGION` environment variable in [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml#L14), [`.github/workflows/shutdown.yml`](.github/workflows/sthudown.yml#L11), [`.github/workflows/delete.yml`](.github/workflows/deploy.yml#L11).
+By default, the deploy will deploy your server in the `us-east-1` AWS region. You may change the location of your instance by updating the `REGION` environment variable in [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml#L14), [`.github/workflows/shutdown.yml`](.github/workflows/shutdown.yml#L11), [`.github/workflows/delete.yml`](.github/workflows/delete.yml#L11).
 
 Find the available regions [here](https://aws.amazon.com/about-aws/global-infrastructure/regions_az/).
 
@@ -42,6 +42,7 @@ For example, to add a custom [`server.properties`](https://minecraft.fandom.com/
 
 
 ---
+
 ## GitHub Action workflows
 
 #### Starting the server
@@ -66,3 +67,13 @@ If you want to delete the Cloudformation stack from AWS entirely, simply run the
 </details>
 
 Learn more about [manually running a workflow](https://docs.github.com/en/actions/managing-workflow-runs/manually-running-a-workflow#running-a-workflow).
+
+
+
+## Options
+
+#### Autoshutdown
+Autoshutdown is enabled by default. You can toggle it by changing the `AUTO_SHUTDOWN_ENABLED` environment variable to `true` or `false` in the *Deploy* workflow. \
+**Note:** Disabling Autoshutdown will likely increase your AWS bill drastically.
+
+You can change the interval at which the Autoshudown happens via the `CRON_SCHEDULE` environment variable in [`manager.sh`](manager.sh).

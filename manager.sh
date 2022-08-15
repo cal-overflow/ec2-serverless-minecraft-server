@@ -4,6 +4,8 @@ set -e
 
 DOCKER_IMAGE="smarterservers/minecraft-java-server-monitor:v0.1.0"
 SCREEN_NAME="server"
+CRON_SCHEDULE="*/5 * * * *" # Visit http://crontab.guru for help interpreting cron expressions
+CRON_INTERVAL=5
 
 setup() {
   echo "Ensuring dependencies are installed and up to date"
@@ -34,8 +36,13 @@ setup() {
 }
 
 startAutoShutdown() {
-  echo "*/5 * * * * /home/ubuntu/manager.sh autoShutdown" > job
-  crontab job
+  IS_AUTO_SHUTDOWN_ENABLED=$(cat cron_enabled.txt)
+  if [ "$IS_AUTO_SHUTDOWN_ENABLED" == "true" ]; then
+    echo "${CRON_SCHEDULE} /home/ubuntu/manager.sh autoShutdown" > job
+    crontab job
+  else
+    crontab -r
+  fi
 }
 
 start() {
@@ -100,7 +107,7 @@ autoShutdown() {
       sudo shutdown now
     fi
 
-    sleep 5m
+    sleep "${CRON_SCHEDULE}m"
     autoShutdown "isRecursiveCall"
   fi
 }

@@ -15,6 +15,7 @@ env:
   KEY_PAIR: minecraft-server-key-pair
   KEY_FILE: key-pair.pem
   SERVER_VERSION: 'latest' # Optionally, you can change this to a specific version (i.e., "1.18")
+  AUTO_SHUTDOWN_ENABLED: true
 
 jobs:
   get-server-jar-url:
@@ -112,6 +113,7 @@ jobs:
           ssh -i $KEY_FILE -o "StrictHostKeyChecking no" ubuntu@$EC2_IP_ADDRESS "
           export TARGET_VERSION=${TARGET_VERSION}
           export SERVER_JAR_URL=${{ env.SERVER_JAR_URL }}
+          echo ${{ env.AUTO_SHUTDOWN_ENABLED }} > cron_enabled.txt
           
           chmod +x manager.sh
 
