@@ -4,7 +4,7 @@ set -e
 
 DOCKER_IMAGE="smarterservers/minecraft-java-server-monitor:v0.1.0"
 SCREEN_NAME="server"
-CRON_SCHEDULE="*/5 * * * *" # Visit http://crontab.guru for help interpreting cron expressions
+CRON_SCHEDULE="*/1 * * * *" # Visit http://crontab.guru for help interpreting cron expressions
 CRON_INTERVAL=5
 
 setup() {
@@ -66,6 +66,12 @@ start() {
     echo "Downloading ${TARGET_VERSION} server jar"
     curl $SERVER_JAR_URL -o server.jar
 
+    if [ ! -f ./server.properties ]; then
+      echo "Generating base server files"
+      echo eula=false > eula.txt # Ensure next line doesn't actually start the server
+      java -Xmx1024M -Xms1024M -jar server.jar nogui # Generates base files and exits since eula=false
+    fi
+
     echo eula=true > eula.txt
     sed -i "s/^enable-query=.*\$/enable-query=true/" server.properties
 
@@ -107,7 +113,7 @@ autoShutdown() {
       sudo shutdown now
     fi
 
-    sleep "${CRON_SCHEDULE}m"
+    sleep "${CRON_INTERVAL}m"
     autoShutdown "isRecursiveCall"
   fi
 }

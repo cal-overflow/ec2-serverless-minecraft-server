@@ -6,6 +6,14 @@ Parameters:
     Description: Private SSH KeyPair
     Type: AWS::EC2::KeyPair::KeyName
 
+  Email:
+    Description: Endpoint for notifications
+    Type: String
+    Default: ''
+
+Conditions:
+  CreateEmailNotificationResources: !Not [!Equals [ !Ref Email, '' ] ]
+
 Resources:
   SSHSecurityGroup:
     Type: AWS::EC2::SecurityGroup
@@ -45,6 +53,63 @@ Resources:
     Type: AWS::EC2::EIP
     Properties:
       InstanceId: !Ref EC2Instance
+
+  SNSTopic:
+    Type: AWS::SNS::Topic
+    Condition: CreateEmailNotificationResources
+    Properties: 
+      TopicName: Minecraft-Server-Notifications
+      Subscription:
+        - Endpoint: !Ref Email
+          Protocol: email
+
+  PowerOnEventRule:
+    Type: AWS::Events::Rule
+    Condition: CreateEmailNotificationResources
+    Properties:
+      EventPattern:
+        source: [ "aws.ec2" ]
+        detail-type: [ "EC2 Instance State-change Notification" ]
+        detail:
+          instance-id: [ !Ref EC2Instance ]
+          state: [ "pending" ]
+      State: ENABLED
+      Targets:
+      - Arn: !Ref SNSTopic
+        Id: OpsTopic
+        InputTransformer:
+          InputTemplate: !Sub "\"Powering on Minecraft server at ${ElasticIP}.\""
+
+  PowerOffEventRule:
+    Type: AWS::Events::Rule
+    Condition: CreateEmailNotificationResources
+    Properties:
+      EventPattern:
+        source: [ "aws.ec2" ]
+        detail-type: [ "EC2 Instance State-change Notification" ]
+        detail:
+          instance-id: [ !Ref EC2Instance ]
+          state: [ "stopping" ]
+      State: ENABLED
+      Targets:
+      - Arn: !Ref SNSTopic
+        Id: OpsTopic
+        InputTransformer:
+          InputTemplate: !Sub "\"Powering off Minecraft server at ${ElasticIP}.\""
+
+  SNSEventTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Condition: CreateEmailNotificationResources
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: 'sns:Publish'
+            Resource: '*'
+      Topics:
+        - !Ref SNSTopic
 
 Outputs:
   IPAddress:

@@ -62,7 +62,7 @@ jobs:
       - name: Deploy Server (AWS Stack)
         id: deploy-server
         run: |
-          sam deploy --region $REGION --parameter-overrides KeyPair=$KEY_PAIR
+          sam deploy --region $REGION --parameter-overrides 'KeyPair=${{ env.KEY_PAIR }} Email=${{ secrets.EMAIL }}'
 
           EC2_IP_ADDRESS=$(aws cloudformation describe-stacks --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`IPAddress`].OutputValue' --output text)
           echo "::set-output name=SERVER_IP::$EC2_IP_ADDRESS"

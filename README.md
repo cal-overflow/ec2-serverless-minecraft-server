@@ -11,29 +11,40 @@ Find the available regions [here](https://aws.amazon.com/about-aws/global-infras
 
 ## How to Deploy
 ### 1. Create an IAM Role
-In your AWS Account, create a new IAM Role with the permissions you deem necessary. This must include [Cloudformation](https://aws.amazon.com/cloudformation/) and [EC2](https://aws.amazon.com/ec2/). Refer to GitHub's docs for [Configuring OpenID Connect in AWS](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services) for guidance.
+In your AWS Account, create a new IAM Role with the permissions you deem necessary. The role must include permissions to create/update/delete resources in the following services.
 
-### 2. Create an SSH keypair on AWS
+  - [Cloudformation](https://aws.amazon.com/cloudformation/)
+  - [EC2](https://aws.amazon.com/ec2/)
+  - [CloudWatch](https://aws.amazon.com/cloudwatch/) - Only required if you want to use [email notifications](#email-notifications)
+  - [SNS](https://aws.amazon.com/sns/) - Only required if you want to use [email notifications](#email-notifications)
+  
+
+### 2. Configure OpenID to connect AWS and GitHub Actions
+Refer to GitHub's docs for [Configuring OpenID Connect in AWS](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services) for guidance.
+
+### 3. Create an SSH keypair on AWS
 See AWS [Create key pairs documentation](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/create-key-pairs.html). \
 By default, the GitHub action that creates the stack uses a key-pair with the name `minecraft-server-key-pair`. You must update the `KEY_PAIR` value in [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml#L15) if you use a different key-pair name.
 
 **Note:** Make sure to keep your private keyfile on your computer if you plan to [connect to the ec2 instance later](#5-connecting-to-the-ec2-instance-after-deploy).
 
 
-### 3. Add essential secrets to your GitHub repository.
+### 4. Add essential secrets to your GitHub repository.
 
 Add the following secrets via **Repository settings** > **Secrets** > **Actions**.
 
   - `IAM_ROLE_ARN` containing your IAM Role ARN from step 1.
-  - `SSH_PRIVATE_KEY` containing the value inside the keyfile generated in step 2.
+  - `SSH_PRIVATE_KEY` containing the value inside the keyfile generated in step 3.
 
-### 4. Trigger a deploy (and start the server)
+See the [options section](#options) for optional secrets.
+
+### 5. Trigger a deploy (and start the server)
 Manually trigger the **deploy & start server** workflow in the **actions** tab on the repository.
 
-### 5. Connecting to the ec2 instance after deploy
-You may SSH into the EC2 instance using the KeyPair from step 2. Refer to the EC2 docs for [connecting to an EC2 instance using SSH](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AccessingInstancesLinux.html).
+### 6. Connecting to the ec2 instance after deploy
+You may SSH into the EC2 instance using the KeyPair from step 3. Refer to the EC2 docs for [connecting to an EC2 instance using SSH](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AccessingInstancesLinux.html).
 
-In the event that you no longer have your keyfile (from step 2) on your computer, you can still execute commands on the server by altering the "start" function inside [`manager.sh`](manager.sh) and running the *deploy & start server* workflow.
+In the event that you no longer have your keyfile (from step 3) on your computer, you can still execute commands on the server by altering the "start" function inside [`manager.sh`](manager.sh) and running the *deploy & start server* workflow.
 
 ## How to make changes to your server
 You may add assets in the `assets` directory that will be automatically copied to the EC2 instance.
@@ -76,4 +87,8 @@ Learn more about [manually running a workflow](https://docs.github.com/en/action
 Autoshutdown is enabled by default. You can toggle it by changing the `AUTO_SHUTDOWN_ENABLED` environment variable to `true` or `false` in the *Deploy* workflow. \
 **Note:** Disabling Autoshutdown will likely increase your AWS bill drastically.
 
-You can change the interval at which the Autoshudown happens via the `CRON_SCHEDULE` environment variable in [`manager.sh`](manager.sh).
+You can change the interval at which the Autoshudown happens via the `CRON_INTERVAL` environment variable in [`manager.sh`](manager.sh). By default the server will automatically shutdown 10 minutes after the last player disconnects.
+
+#### Email notifications
+You may optionally recieve notifications via Email whenever the server powers on/off. Simply add your email in a repository secret titled `EMAIL` and [trigger a deploy](#starting-the-server). \
+**Note:** Requires your [IAM role](#1-create-an-iam-role) to include permissions for SNS and Cloudwatch.
