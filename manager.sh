@@ -2,10 +2,10 @@
 
 set -e
 
-DOCKER_IMAGE="smarterservers/minecraft-java-server-monitor:v0.1.0"
+SERVER_MONITOR_DOCKER_IMAGE="smarterservers/minecraft-java-server-monitor:v0.1.0"
 SCREEN_NAME="server"
 CRON_SCHEDULE="*/1 * * * *" # Visit http://crontab.guru for help interpreting cron expressions
-CRON_INTERVAL=5
+AUTO_SHUTDOWN_TIMEOUT=5 # minutes to wait before shutting down server after last player disconnects
 
 setup() {
   echo "Ensuring dependencies are installed and up to date"
@@ -38,6 +38,7 @@ setup() {
 startAutoShutdown() {
   IS_AUTO_SHUTDOWN_ENABLED=$(cat cron_enabled.txt)
   if [ "$IS_AUTO_SHUTDOWN_ENABLED" == "true" ]; then
+    echo 0 > minutes_since_last_connection.txt
     echo "${CRON_SCHEDULE} /home/ubuntu/manager.sh autoShutdown" > job
     crontab job
   else
@@ -103,18 +104,19 @@ autoShutdown() {
   PORT=$(cat server/server.properties | grep "query.port" | cut -d "=" -f2)
 
   sudo chmod 666 /var/run/docker.sock
-  docker run $DOCKER_IMAGE -h $PRIVATE_IP_ADDRESS -p PORT # returns non-zero code if there are active players
 
-  if [ $? -eq 0 ]; then
-    if [[ "$1" == "isRecursiveCall" ]]; then
-      autoShutdown "isFinalRecursiveCall"
-    elif [[ "$1" == "isFinalRecursiveCall" ]]; then
-      stop
+  # note: this docker container returns non-zero code if there are active players
+  if docker run $SERVER_MONITOR_DOCKER_IMAGE -h $PRIVATE_IP_ADDRESS -p PORT; then
+    MINUTES_SINCE_LAST_CONNECTION=$(($(cat minutes_since_last_connection.txt) + 1))
+
+    if [[ $MINUTES_SINCE_LAST_CONNECTION == "$AUTO_SHUTDOWN_TIMEOUT" ]]; then
+      stop "No players have been connected for $AUTO_SHUTDOWN_TIMEOUT minutes.\nStopping the server"
       sudo shutdown now
+    else
+      echo $MINUTES_SINCE_LAST_CONNECTION > minutes_since_last_connection.txt
     fi
-
-    sleep "${CRON_INTERVAL}m"
-    autoShutdown "isRecursiveCall"
+  else
+    echo 0 > minutes_since_last_connection.txt
   fi
 }
 

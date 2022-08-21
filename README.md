@@ -87,7 +87,7 @@ Learn more about [manually running a workflow](https://docs.github.com/en/action
 Autoshutdown is enabled by default. You can toggle it by changing the `AUTO_SHUTDOWN_ENABLED` environment variable to `true` or `false` in the *Deploy* workflow. \
 **Note:** Disabling Autoshutdown will likely increase your AWS bill drastically.
 
-You can change the interval at which the Autoshudown happens via the `CRON_INTERVAL` environment variable in [`manager.sh`](manager.sh). By default the server will automatically shutdown 10 minutes after the last player disconnects.
+You can change the timeout at which the Autoshudown happens via the `AUTO_SHUTDOWN_TIMEOUT` environment variable in [`manager.sh`](manager.sh). By default the server will automatically shutdown 5 minutes after the last player disconnects.
 
 #### Email notifications
 You may optionally recieve notifications via Email whenever the server powers on/off. Simply add your email in a repository secret titled `EMAIL` and [trigger a deploy](#starting-the-server). \
