@@ -2,7 +2,7 @@ name: Deploy & start server
 
 on: 
   push:
-    branches: ['main', 'auto-get-ssh-key'] # TODO - remove this feature branch trigger
+    branches: ['main']
   workflow_dispatch:
 
 permissions:
