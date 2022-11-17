@@ -92,6 +92,7 @@ jobs:
           EC2_IP_ADDRESS: ${{ needs.deploy.outputs.SERVER_IP_ADDRESS }}
           SSH_KEY_PAIR_ID: ${{ needs.deploy.outputs.SSH_KEY_PAIR_ID }}
         run: |
+          echo $SSH_KEY_PAIR_ID
           SSH_KEY=$(aws secretsmanager get-secret-value --region $REGION --secret-id $SSH_KEY_PAIR_ID) 
           echo "::add-mask::$SSH_KEY"
           echo ${{ needs.deploy.outputs.SSH_KEY }}} > ${{ env.KEY_FILE }}
