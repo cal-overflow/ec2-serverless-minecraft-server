@@ -2,10 +2,6 @@ AWSTemplateFormatVersion: 2010-09-09
 Description: "Minecraft Server stack"
 
 Parameters:
-  KeyPair:
-    Description: Private SSH KeyPair
-    Type: AWS::EC2::KeyPair::KeyName
-
   Email:
     Description: Endpoint for notifications
     Type: String
