@@ -65,6 +65,18 @@ jobs:
           EC2_IP_ADDRESS=$(aws cloudformation describe-stacks --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`IPAddress`].OutputValue' --output text)
           echo "::set-output name=SERVER_IP::$EC2_IP_ADDRESS" 
 
+          KEY_PAIR_ID=$(aws cloudformation describe-stacks --region $REGION --query 'Stacks[0].Outputs[?OutputKey=`SSHKeyPairId`].OutputValue' --output text)
+          echo "::add-mask::$KEY_PAIR_ID"
+          echo "::set-output name=KEY_PAIR_ID::$KEY_PAIR_ID"
+
+      - name: Get SSH Key
+        id: get-ssh-key
+        run: |
+          SSH_KEY_PAIR_ID=${{ needs.deploy-server.outputs.KEY_PAIR_ID }}
+          echo "::add-mask::$SSH_KEY_PAIR_ID"
+          SSH_KEY=$(aws secretsmanager get-secret-value --region $REGION --secret-id $SSH_KEY_PAIR_ID) 
+          echo "::add-mask::$SSH_KEY"
+
   start:
     needs: [get-server-jar-url, deploy]
     runs-on: ubuntu-latest
@@ -79,7 +91,7 @@ jobs:
         with:
           role-to-assume: ${{ secrets.IAM_ROLE_ARN }}
           aws-region: ${{ env.REGION }}
-
+      
       - name: Start server
         id: start-server
         env:
@@ -87,11 +99,7 @@ jobs:
           TARGET_VERSION: ${{ needs.get-server-jar-url.outputs.TARGET_VERSION }}
           EC2_IP_ADDRESS: ${{ needs.deploy.outputs.SERVER_IP_ADDRESS }}
         run: |
-          KEY_PAIR_ID=$(aws cloudformation describe-stacks --region $REGION --query 'Stacks[0].Outputs[?OutputKey=`SSHKeyPairId`].OutputValue' --output text)
-          echo "::add-mask::$KEY_PAIR_ID"
-          SSH_KEY=$(aws secretsmanager get-secret-value --region $REGION --secret-id $KEY_PAIR_ID) 
-          echo "::add-mask::$SSH_KEY"
-          echo "$SSH_KEY" > ${{ env.KEY_FILE }}
+          echo ${{ needs.deploy.outputs.SSH_KEY }}} > ${{ env.KEY_FILE }}
           chmod 600 ${{ env.KEY_FILE }}
 
           EC2_INSTANCE_ID=$(aws ec2 describe-instances --region $REGION --filters "Name=ip-address,Values=$EC2_IP_ADDRESS" --query "Reservations[*].Instances[*].[InstanceId]" --output text)

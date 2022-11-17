@@ -22,29 +22,19 @@ In your AWS Account, create a new IAM Role with the permissions you deem necessa
 ### 2. Configure OpenID to connect AWS and GitHub Actions
 Refer to GitHub's docs for [Configuring OpenID Connect in AWS](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services) for guidance.
 
-### 3. Create an SSH keypair on AWS
-See AWS [Create key pairs documentation](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/create-key-pairs.html). \
-By default, the GitHub action that creates the stack uses a key-pair with the name `minecraft-server-key-pair`. You must update the `KEY_PAIR` value in [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml#L15) if you use a different key-pair name.
-
-**Note:** Make sure to keep your private keyfile on your computer if you plan to [connect to the ec2 instance later](#5-connecting-to-the-ec2-instance-after-deploy).
-
-
-### 4. Add essential secrets to your GitHub repository.
+### 3. Add essential secrets to your GitHub repository.
 
 Add the following secrets via **Repository settings** > **Secrets** > **Actions**.
 
   - `IAM_ROLE_ARN` containing your IAM Role ARN from step 1.
-  - `SSH_PRIVATE_KEY` containing the value inside the keyfile generated in step 3.
 
 See the [options section](#options) for optional secrets.
 
-### 5. Trigger a deploy (and start the server)
+### 4. Trigger a deploy (and start the server)
 Manually trigger the **deploy & start server** workflow in the **actions** tab on the repository.
 
-### 6. Connecting to the ec2 instance after deploy
-You may SSH into the EC2 instance using the KeyPair from step 3. Refer to the EC2 docs for [connecting to an EC2 instance using SSH](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AccessingInstancesLinux.html).
-
-In the event that you no longer have your keyfile (from step 3) on your computer, you can still execute commands on the server by altering the "start" function inside [`manager.sh`](manager.sh) and running the *deploy & start server* workflow.
+### 5. Connecting to the ec2 instance after deploy
+You may SSH into the EC2 instance using the KeyPair that was generated within the AWS stack. The SSH Key will be located within the [AWS Systems Manager parameter store](https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-parameter-store.html). Refer to the EC2 docs for [connecting to an EC2 instance using SSH](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AccessingInstancesLinux.html).
 
 ## How to make changes to your server
 You may add assets in the `assets` directory that will be automatically copied to the EC2 instance.
