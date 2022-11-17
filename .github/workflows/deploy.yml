@@ -99,7 +99,7 @@ jobs:
           chmod 600 ${{ env.KEY_FILE }}
 
           EC2_INSTANCE_ID=$(aws ec2 describe-instances --region $REGION --filters "Name=ip-address,Values=$EC2_IP_ADDRESS" --query "Reservations[*].Instances[*].[InstanceId]" --output text)
-          EC2_INSTANCE_STATUS=$(aws ec2 describe-instance-status --region $REGION --instance-id $EC2_INSTANCE_ID --query "InstanceStatuses[?InstanceId=='$EC2_INSTANCE_ID'].InstanceState.Name" --output text)
+          EC2_INSTANCE_STATUS=$(aws ec2 describe-instance-status --region $REGION --instance-id $EC2_INSTANCE_ID --query "InstanceStatuses[?InstanceId=='$EC2_INSTANCE_ID'].InstanceState.Name")
 
           until [ "$EC2_INSTANCE_STATUS" == "running" ]; do
             echo "Starting EC2 Instance..."
