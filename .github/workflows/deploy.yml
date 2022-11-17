@@ -39,15 +39,15 @@ jobs:
         working-directory: VersionScraper
         run: |
           npm start
-          echo ::set-output name=SERVER_JAR_URL::$(cat url.txt)
-          echo ::set-output name=TARGET_VERSION::$(cat targetVersion.txt)
+          echo "SERVER_JAR_URL=$(cat url.txt)" >> $GITHUB_OUTPUT
+          echo "TARGET_VERSION=$(cat targetVersion.txt)" >> $GITHUB_OUTPUT
   
   deploy:
     needs: get-server-jar-url
     runs-on: ubuntu-latest
     outputs:
       SERVER_IP_ADDRESS: ${{ steps.deploy-server.outputs.SERVER_IP }}
-      SSH_KEY_PAIR_ID: ${{ steps.deploy-server.outputs.KEY_PAIR_ID }}
+      SSH_KEY_PAIR: ${{ steps.deploy-server.outputs.KEY_PAIR_NAME }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@master
@@ -66,8 +66,8 @@ jobs:
           EC2_IP_ADDRESS=$(aws cloudformation describe-stacks --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`IPAddress`].OutputValue' --output text)
           echo "SERVER_IP=$EC2_IP_ADDRESS" >> $GITHUB_OUTPUT
 
-          KEY_PAIR_ID=$(aws cloudformation describe-stacks --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`SSHKeyPairId`].OutputValue' --output text)
-          echo "KEY_PAIR_ID=$KEY_PAIR_ID" >> $GITHUB_OUTPUT
+          KEY_PAIR_NAME=$(aws cloudformation describe-stacks --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`SSHKeyPairName`].OutputValue' --output text)
+          echo "KEY_PAIR_NAME=$KEY_PAIR_NAME" >> $GITHUB_OUTPUT
 
   start:
     needs: [get-server-jar-url, deploy]
@@ -90,10 +90,9 @@ jobs:
           SERVER_JAR_URL: ${{ needs.get-server-jar-url.outputs.SERVER_JAR_URL }}
           TARGET_VERSION: ${{ needs.get-server-jar-url.outputs.TARGET_VERSION }}
           EC2_IP_ADDRESS: ${{ needs.deploy.outputs.SERVER_IP_ADDRESS }}
-          SSH_KEY_PAIR_ID: ${{ needs.deploy.outputs.SSH_KEY_PAIR_ID }}
+          SSH_KEY_PAIR: ${{ needs.deploy.outputs.SSH_KEY_PAIR }}
         run: |
-          echo $SSH_KEY_PAIR_ID
-          SSH_KEY=$(aws secretsmanager get-secret-value --region $REGION --secret-id $SSH_KEY_PAIR_ID) 
+          SSH_KEY=$(aws ssm get-parameter --region $REGION --name $SSH_KEY_PAIR) 
           echo "::add-mask::$SSH_KEY"
           echo ${{ needs.deploy.outputs.SSH_KEY }}} > ${{ env.KEY_FILE }}
           chmod 600 ${{ env.KEY_FILE }}

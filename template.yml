@@ -117,7 +117,7 @@ Outputs:
     Description: Elastic IP Address associated with EC2 Instance
     Value: !Ref ElasticIP
 
-  SSHKeyPairId:
+  SSHKeyPairName:
     Description: The ID of the SSH Key Pair associated with the EC2 Instance
-    Value: !GetAtt SSHKey.KeyPairId
+    Value: !Ref SSHKey
 
