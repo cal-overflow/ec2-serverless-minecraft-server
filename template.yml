@@ -119,5 +119,5 @@ Outputs:
 
   SSHKeyPairName:
     Description: The ID of the SSH Key Pair associated with the EC2 Instance
-    Value: !Ref SSHKey
+    Value: !Sub '/ec2/keypair${SSHKey.KeyPairId}'
 
