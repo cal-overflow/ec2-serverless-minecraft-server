@@ -2,7 +2,7 @@ name: Deploy & start server
 
 on: 
   push:
-    branches: ['main']
+    branches: ['main', 'auto-get-ssh-key'] # TODO - remove this feature branch trigger
   workflow_dispatch:
 
 permissions:
@@ -12,8 +12,6 @@ permissions:
 
 env:
   REGION: us-east-1
-  KEY_PAIR: minecraft-server-key-pair
-  KEY_FILE: key-pair.pem
   SERVER_VERSION: 'latest' # Optionally, you can change this to a specific version (i.e., "1.18")
   AUTO_SHUTDOWN_ENABLED: true
 
@@ -62,10 +60,10 @@ jobs:
       - name: Deploy Server (AWS Stack)
         id: deploy-server
         run: |
-          sam deploy --region $REGION --parameter-overrides 'KeyPair=${{ env.KEY_PAIR }} Email=${{ secrets.EMAIL }}'
+          sam deploy --region $REGION --parameter-overrides 'Email=${{ secrets.EMAIL }}'
 
           EC2_IP_ADDRESS=$(aws cloudformation describe-stacks --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`IPAddress`].OutputValue' --output text)
-          echo "::set-output name=SERVER_IP::$EC2_IP_ADDRESS"
+          echo "::set-output name=SERVER_IP::$EC2_IP_ADDRESS" 
 
   start:
     needs: [get-server-jar-url, deploy]
@@ -89,7 +87,11 @@ jobs:
           TARGET_VERSION: ${{ needs.get-server-jar-url.outputs.TARGET_VERSION }}
           EC2_IP_ADDRESS: ${{ needs.deploy.outputs.SERVER_IP_ADDRESS }}
         run: |
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ${{ env.KEY_FILE }}
+          KEY_PAIR_ID=$(aws cloudformation describe-stacks --region $REGION --query 'Stacks[0].Outputs[?OutputKey=`SSHKeyPairId`].OutputValue' --output text)
+          echo "::add-mask::$KEY_PAIR_ID"
+          SSH_KEY=$(aws secretsmanager get-secret-value --region $REGION --secret-id $KEY_PAIR_ID) 
+          echo "::add-mask::$SSH_KEY"
+          echo "$SSH_KEY" > ${{ env.KEY_FILE }}
           chmod 600 ${{ env.KEY_FILE }}
 
           EC2_INSTANCE_ID=$(aws ec2 describe-instances --region $REGION --filters "Name=ip-address,Values=$EC2_IP_ADDRESS" --query "Reservations[*].Instances[*].[InstanceId]" --output text)

@@ -35,10 +35,15 @@ Resources:
           IpProtocol: tcp
           ToPort: 25565
 
+  SSHKey:
+    Type: AWS::EC2::KeyPair
+    Properties: 
+      KeyName: minecraft-ec2-ssh-key
+
   EC2Instance:
     Type: AWS::EC2::Instance
     Properties:
-      KeyName: !Ref KeyPair
+      KeyName: !Ref SSHKey
       ImageId: ami-0070c5311b7677678
       InstanceType: t3.small
       Monitoring: true
@@ -115,3 +120,8 @@ Outputs:
   IPAddress:
     Description: Elastic IP Address associated with EC2 Instance
     Value: !Ref ElasticIP
+
+  SSHKeyPairId:
+    Description: The ID of the SSH Key Pair associated with the EC2 Instance
+    Value: !GetAtt SSHKey.KeyPairId
+
