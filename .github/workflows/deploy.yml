@@ -47,6 +47,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       SERVER_IP_ADDRESS: ${{ steps.deploy-server.outputs.SERVER_IP }}
+      SSH_KEY_PAIR_ID: ${{ steps.deploy-server.outputs.KEY_PAIR_ID }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@master
@@ -63,19 +64,10 @@ jobs:
           sam deploy --region $REGION --parameter-overrides 'Email="${{ secrets.EMAIL }}"'
 
           EC2_IP_ADDRESS=$(aws cloudformation describe-stacks --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`IPAddress`].OutputValue' --output text)
-          echo "::set-output name=SERVER_IP::$EC2_IP_ADDRESS" 
+          echo "SERVER_IP=$EC2_IP_ADDRESS" >> $GITHUB_OUTPUT
 
-          KEY_PAIR_ID=$(aws cloudformation describe-stacks --region $REGION --query 'Stacks[0].Outputs[?OutputKey=`SSHKeyPairId`].OutputValue' --output text)
-          echo "::add-mask::$KEY_PAIR_ID"
-          echo "::set-output name=KEY_PAIR_ID::$KEY_PAIR_ID"
-
-      - name: Get SSH Key
-        id: get-ssh-key
-        run: |
-          SSH_KEY_PAIR_ID=${{ needs.deploy-server.outputs.KEY_PAIR_ID }}
-          echo "::add-mask::$SSH_KEY_PAIR_ID"
-          SSH_KEY=$(aws secretsmanager get-secret-value --region $REGION --secret-id $SSH_KEY_PAIR_ID) 
-          echo "::add-mask::$SSH_KEY"
+          KEY_PAIR_ID=$(aws cloudformation describe-stacks --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`SSHKeyPairId`].OutputValue' --output text)
+          echo "KEY_PAIR_ID=$KEY_PAIR_ID" >> $GITHUB_OUTPUT
 
   start:
     needs: [get-server-jar-url, deploy]
@@ -91,14 +83,17 @@ jobs:
         with:
           role-to-assume: ${{ secrets.IAM_ROLE_ARN }}
           aws-region: ${{ env.REGION }}
-      
+
       - name: Start server
         id: start-server
         env:
           SERVER_JAR_URL: ${{ needs.get-server-jar-url.outputs.SERVER_JAR_URL }}
           TARGET_VERSION: ${{ needs.get-server-jar-url.outputs.TARGET_VERSION }}
           EC2_IP_ADDRESS: ${{ needs.deploy.outputs.SERVER_IP_ADDRESS }}
+          SSH_KEY_PAIR_ID: ${{ needs.deploy.outputs.SSH_KEY_PAIR_ID }}
         run: |
+          SSH_KEY=$(aws secretsmanager get-secret-value --region $REGION --secret-id $SSH_KEY_PAIR_ID) 
+          echo "::add-mask::$SSH_KEY"
           echo ${{ needs.deploy.outputs.SSH_KEY }}} > ${{ env.KEY_FILE }}
           chmod 600 ${{ env.KEY_FILE }}
 
