@@ -12,8 +12,6 @@ permissions:
 
 env:
   REGION: us-east-1
-  KEY_PAIR: minecraft-server-key-pair
-  KEY_FILE: key-pair.pem
   SERVER_VERSION: 'latest' # Optionally, you can change this to a specific version (i.e., "1.18")
   AUTO_SHUTDOWN_ENABLED: true
 
@@ -41,14 +39,15 @@ jobs:
         working-directory: VersionScraper
         run: |
           npm start
-          echo ::set-output name=SERVER_JAR_URL::$(cat url.txt)
-          echo ::set-output name=TARGET_VERSION::$(cat targetVersion.txt)
+          echo "SERVER_JAR_URL=$(cat url.txt)" >> $GITHUB_OUTPUT
+          echo "TARGET_VERSION=$(cat targetVersion.txt)" >> $GITHUB_OUTPUT
   
   deploy:
     needs: get-server-jar-url
     runs-on: ubuntu-latest
     outputs:
       SERVER_IP_ADDRESS: ${{ steps.deploy-server.outputs.SERVER_IP }}
+      SSH_KEY_PAIR: ${{ steps.deploy-server.outputs.KEY_PAIR_NAME }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@master
@@ -62,10 +61,13 @@ jobs:
       - name: Deploy Server (AWS Stack)
         id: deploy-server
         run: |
-          sam deploy --region $REGION --parameter-overrides 'KeyPair=${{ env.KEY_PAIR }} Email=${{ secrets.EMAIL }}'
+          sam deploy --region $REGION --parameter-overrides 'Email="${{ secrets.EMAIL }}"'
 
           EC2_IP_ADDRESS=$(aws cloudformation describe-stacks --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`IPAddress`].OutputValue' --output text)
-          echo "::set-output name=SERVER_IP::$EC2_IP_ADDRESS"
+          echo "SERVER_IP=$EC2_IP_ADDRESS" >> $GITHUB_OUTPUT
+
+          KEY_PAIR_NAME=$(aws cloudformation describe-stacks --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`SSHKeyPairName`].OutputValue' --output text)
+          echo "KEY_PAIR_NAME=$KEY_PAIR_NAME" >> $GITHUB_OUTPUT
 
   start:
     needs: [get-server-jar-url, deploy]
@@ -88,12 +90,13 @@ jobs:
           SERVER_JAR_URL: ${{ needs.get-server-jar-url.outputs.SERVER_JAR_URL }}
           TARGET_VERSION: ${{ needs.get-server-jar-url.outputs.TARGET_VERSION }}
           EC2_IP_ADDRESS: ${{ needs.deploy.outputs.SERVER_IP_ADDRESS }}
+          SSH_KEY_PAIR: ${{ needs.deploy.outputs.SSH_KEY_PAIR }}
         run: |
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ${{ env.KEY_FILE }}
-          chmod 600 ${{ env.KEY_FILE }}
+          aws ssm get-parameter --name $SSH_KEY_PAIR --region $REGION --with-decryption --query 'Parameter.Value' --output text > key.pem
+          chmod 600 key.pem
 
           EC2_INSTANCE_ID=$(aws ec2 describe-instances --region $REGION --filters "Name=ip-address,Values=$EC2_IP_ADDRESS" --query "Reservations[*].Instances[*].[InstanceId]" --output text)
-          EC2_INSTANCE_STATUS=$(aws ec2 describe-instance-status --region $REGION --instance-id $EC2_INSTANCE_ID --query "InstanceStatuses[?InstanceId=='$EC2_INSTANCE_ID'].InstanceState.Name" --output text)
+          EC2_INSTANCE_STATUS=$(aws ec2 describe-instance-status --region $REGION --instance-id $EC2_INSTANCE_ID --query "InstanceStatuses[?InstanceId=='$EC2_INSTANCE_ID'].InstanceState.Name")
 
           until [ "$EC2_INSTANCE_STATUS" == "running" ]; do
             echo "Starting EC2 Instance..."
@@ -103,14 +106,14 @@ jobs:
           done
 
           echo "Copying script (manager.sh) to server"
-          rsync -e "ssh -i $KEY_FILE -o StrictHostKeyChecking=no" manager.sh ubuntu@$EC2_IP_ADDRESS:~/.
+          rsync -e "ssh -i key.pem -o StrictHostKeyChecking=no" manager.sh ubuntu@$EC2_IP_ADDRESS:~/.
 
           if [ -d "assets" ]; then
             echo "Copying assets to server"
-            rsync -e "ssh -i $KEY_FILE -o StrictHostKeyChecking=no" -r assets/ ubuntu@$EC2_IP_ADDRESS:server
+            rsync -e "ssh -i key.pem -o StrictHostKeyChecking=no" -r assets/ ubuntu@$EC2_IP_ADDRESS:server
           fi
 
-          ssh -i $KEY_FILE -o "StrictHostKeyChecking no" ubuntu@$EC2_IP_ADDRESS "
+          ssh -i key.pem -o "StrictHostKeyChecking no" ubuntu@$EC2_IP_ADDRESS "
           export TARGET_VERSION=${TARGET_VERSION}
           export SERVER_JAR_URL=${{ env.SERVER_JAR_URL }}
           echo ${{ env.AUTO_SHUTDOWN_ENABLED }} > cron_enabled.txt
