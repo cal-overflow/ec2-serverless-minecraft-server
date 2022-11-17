@@ -93,7 +93,7 @@ jobs:
           SSH_KEY_PAIR: ${{ needs.deploy.outputs.SSH_KEY_PAIR }}
         run: |
           echo $SSH_KEY_PAIR
-          SSH_KEY=$(aws ssm get-parameter --name $SSH_KEY_PAIR --region $REGION --with-decryption --query 'Parameter.Value' --output text)
+          SSH_KEY=$(aws ssm get-parameter --name $SSH_KEY_PAIR --region $REGION --with-decryption --query 'Parameter.Value')
           # echo "::add-mask::$SSH_KEY"
           echo ${{ needs.deploy.outputs.SSH_KEY }} > ${{ env.KEY_FILE }}
           chmod 600 ${{ env.KEY_FILE }}
