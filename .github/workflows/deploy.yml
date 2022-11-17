@@ -92,8 +92,6 @@ jobs:
           EC2_IP_ADDRESS: ${{ needs.deploy.outputs.SERVER_IP_ADDRESS }}
           SSH_KEY_PAIR: ${{ needs.deploy.outputs.SSH_KEY_PAIR }}
         run: |
-          # echo $SSH_KEY_PAIR
-          echo "Running "
           aws ssm get-parameter --name $SSH_KEY_PAIR --region $REGION --with-decryption --query 'Parameter.Value' --output text > key.pem
           chmod 600 key.pem
 
