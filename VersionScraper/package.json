@@ -9,7 +9,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Smarter-Servers/minecraft-server.git"
+    "url": "git+https://github.com/cal-overflow/minecraft-server.git"
   },
   "author": {
     "name": "cal-overflow",
@@ -17,9 +17,9 @@
   },
   "license": "ISC",
   "bugs": {
-    "url": "https://github.com/Smarter-Servers/minecraft-server/issues"
+    "url": "https://github.com/cal-overflow/minecraft-server/issues"
   },
-  "homepage": "https://github.com/Smarter-Servers/minecraft-server#readme",
+  "homepage": "https://github.com/cal-overflow/minecraft-server#readme",
   "dependencies": {
     "node-fetch": "^3.2.8"
   },

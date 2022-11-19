@@ -2,7 +2,7 @@
 
 set -e
 
-SERVER_MONITOR_DOCKER_IMAGE="smarterservers/minecraft-java-server-monitor:v0.1.0"
+SERVER_MONITOR_DOCKER_IMAGE="caloverflow/minecraft-java-server-monitor:v0.1.0"
 SCREEN_NAME="server"
 CRON_SCHEDULE="*/1 * * * *" # Visit http://crontab.guru for help interpreting cron expressions
 AUTO_SHUTDOWN_TIMEOUT=5 # minutes to wait before shutting down server after last player disconnects
