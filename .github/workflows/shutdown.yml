@@ -4,7 +4,7 @@ on: workflow_dispatch
 
 permissions:
   id-token: write
-  contents: read
+  contents: write
   deployments: write
 
 env:
@@ -45,6 +45,10 @@ jobs:
           ssh -i $KEY_FILE -o "StrictHostKeyChecking no" ubuntu@$EC2_IP_ADDRESS "
           ./manager.sh stop
 
+          echo "Zipping server data"
+          zip server.zip -r server
+          scp -i key.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@$EC2_IP_ADDRESS:server.zip tmp.zip
+
           echo "Shutting down EC2 instance"
           sudo shutdown now
           " || SSH_EXIT_CODE=$?
@@ -55,6 +59,28 @@ jobs:
           fi
 
           exit $SSH_EXIT_CODE
+
+      - name: Sync server data
+        env:
+          EC2_IP_ADDRESS: ${{ needs.deploy.outputs.SERVER_IP_ADDRESS }}
+        run: |
+          echo "Syncing server data"
+
+          unzip tmp.zip -d ${{ runner.temp }}
+          mkdir backups/$TIMESTAMP
+
+          cp ${{ runner.temp }}/server/*.json assets/.
+          cp ${{ runner.temp }}/server/server.properties assets/.
+          cp ${{ runner.temp }}/server/server-icon.png assets/.
+          cp -r ${{ runner.temp }}/server/logs backups/$TIMESTAMP
+          cp -r ${{ runner.temp }}/server/world backups/$TIMESTAMP
+
+
+      - name: 'Commit assets & backup'
+        uses: stefanzweifel/git-auto-commit-action@v4.16.0
+        with:
+          commit_message: "Sync server assets & create backup"
+          file_pattern: 'backups/* assets/*'
 
       - name: Set GitHub environment status (show the server is inactive on GitHub)
         uses: chrnorm/deployment-status@v2

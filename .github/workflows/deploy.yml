@@ -140,7 +140,6 @@ jobs:
           scp -i key.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@$EC2_IP_ADDRESS:server.zip tmp.zip
 
           unzip tmp.zip -d ${{ runner.temp }}
-
           mkdir backups/$TIMESTAMP
 
           cp ${{ runner.temp }}/server/*.json assets/.
@@ -150,7 +149,7 @@ jobs:
           cp -r ${{ runner.temp }}/server/world backups/$TIMESTAMP
 
 
-      - name: Git Auto Commit
+      - name: 'Commit assets & backup'
         uses: stefanzweifel/git-auto-commit-action@v4.16.0
         with:
           commit_message: "Sync server assets & create backup"

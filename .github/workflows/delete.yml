@@ -4,7 +4,7 @@ on: workflow_dispatch
 
 permissions:
   id-token: write
-  contents: read
+  contents: write
   deployments: write
 
 env:
@@ -45,6 +45,52 @@ jobs:
         with:
           role-to-assume: ${{ secrets.IAM_ROLE_ARN }}
           aws-region: ${{ env.REGION }}
+
+      - name: Perform data backup
+        id: start-server
+        env:
+          TARGET_VERSION: ${{ needs.get-server-jar-url.outputs.TARGET_VERSION }}
+          EC2_IP_ADDRESS: ${{ needs.deploy.outputs.SERVER_IP_ADDRESS }}
+        run: |
+          STACK_NAME=$(cat samconfig.toml| grep "stack_name =" | awk '{print $3}' | tr -d '"')
+
+          SSH_KEY_PAIR=$(aws cloudformation describe-stacks --region $REGION --stack-name $STACK_NAME --query 'Stacks[0].Outputs[?OutputKey==`SSHKeyPairName`].OutputValue' --output text)
+
+          aws ssm get-parameter --name $SSH_KEY_PAIR --region $REGION --with-decryption --query 'Parameter.Value' --output text > key.pem
+          chmod 600 key.pem
+
+
+          EC2_INSTANCE_ID=$(aws ec2 describe-instances --region $REGION --filters "Name=ip-address,Values=$EC2_IP_ADDRESS" --query "Reservations[*].Instances[*].[InstanceId]" --output text)
+          EC2_INSTANCE_STATUS=$(aws ec2 describe-instance-status --region $REGION --instance-id $EC2_INSTANCE_ID --query "InstanceStatuses[?InstanceId=='$EC2_INSTANCE_ID'].InstanceState.Name")
+
+          until [ "$EC2_INSTANCE_STATUS" == "running" ]; do
+            echo "Starting EC2 Instance..."
+            aws ec2 start-instances --instance-ids $EC2_INSTANCE_ID
+            sleep 30
+            EC2_INSTANCE_STATUS=$(aws ec2 describe-instance-status --region $REGION --instance-id $EC2_INSTANCE_ID --query "InstanceStatuses[?InstanceId=='$EC2_INSTANCE_ID'].InstanceState.Name" --output text)
+          done
+
+          ssh -i key.pem -o "StrictHostKeyChecking no" ubuntu@$EC2_IP_ADDRESS "
+          zip server.zip -r server
+          "
+
+          echo "Syncing server data"
+          scp -i key.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@$EC2_IP_ADDRESS:server.zip tmp.zip
+
+          unzip tmp.zip -d ${{ runner.temp }}
+          mkdir backups/$TIMESTAMP
+
+          cp ${{ runner.temp }}/server/*.json assets/.
+          cp ${{ runner.temp }}/server/server.properties assets/.
+          cp ${{ runner.temp }}/server/server-icon.png assets/.
+          cp -r ${{ runner.temp }}/server/logs backups/$TIMESTAMP
+          cp -r ${{ runner.temp }}/server/world backups/$TIMESTAMP
+
+      - name: 'Commit assets & backup'
+        uses: stefanzweifel/git-auto-commit-action@v4.16.0
+        with:
+          commit_message: "Sync server assets & create backup"
+          file_pattern: 'backups/* assets/*'
 
       - uses: chrnorm/deployment-action@v2
         name: Create GitHub deployment
