@@ -134,7 +134,7 @@ jobs:
 
           echo "Copying backup $TIMESTAMP"
 
-          scp -i key.pem -o StrictHostKeyChecking=no-o UserKnownHostsFile=/dev/null ubuntu@$EC2_IP_ADDRESS:server.zip backups/$TIMESTAMP.zip
+          scp -i key.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@$EC2_IP_ADDRESS:server.zip backups/$TIMESTAMP.zip
 
       - name: Add & Commit server data
         uses: EndBug/add-and-commit@v9.1.1
