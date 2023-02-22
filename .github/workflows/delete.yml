@@ -46,6 +46,9 @@ jobs:
           role-to-assume: ${{ secrets.IAM_ROLE_ARN }}
           aws-region: ${{ env.REGION }}
 
+      - name: Get current date & time for backup data
+        run: echo "TIMESTAMP=$(date '+%Y-%m-%d_%H-%M-%S')" >> $GITHUB_ENV
+
       - name: Perform data backup
         id: start-server
         env:
