@@ -132,17 +132,20 @@ jobs:
           zip server.zip -r server
           "
           scp -i key.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@$EC2_IP_ADDRESS:server.zip tmp.zip
-          mkdir backups/$TIMESTAMP
-          unzip tmp.zip -d backups/$TIMESTAMP
-          echo "BACKUPS dir:"
-          ls backups
-          
+          unzip tmp.zip -d ${{ runner.temp }}
 
+          mkdir backups/$TIMESTAMP
+
+          cp ${{ runner.temp }}/server/*.json assets/.
+          cp ${{ runner.temp }}/server/server.properties assets/.
+          cp ${{ runner.temp }}/server/server-icon.png assets/.
+          cp -r ${{ runner.temp }}/server/logs backups/$TIMESTAMP
+          cp -r ${{ runner.temp }}/server/world backups/$TIMESTAMP
 
 
       - name: Git Auto Commit
         uses: stefanzweifel/git-auto-commit-action@v4.16.0
         with:
-          commit_message: "Sync Server assets & create backup"
+          commit_message: "Sync server assets & create backup"
           file_pattern: 'backups/* assets/*'
 
