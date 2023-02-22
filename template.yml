@@ -34,7 +34,7 @@ Resources:
   SSHKey:
     Type: AWS::EC2::KeyPair
     Properties: 
-      KeyName: minecraft-ec2-ssh-key
+      KeyName: !Sub '${AWS::StackName}-ec2-ssh-key'
 
   EC2Instance:
     Type: AWS::EC2::Instance

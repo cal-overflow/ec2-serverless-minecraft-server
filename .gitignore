@@ -1,4 +1,9 @@
 node_modules*
 url.txt
 targetVersion.txt
-*.DS_Store
+**/*.DS_Store
+**/*.jar
+backups/**/*screen.logs
+backups/**/*.png
+backups/**/libraries
+

@@ -7,7 +7,7 @@ on:
 
 permissions:
   id-token: write
-  contents: read
+  contents: write
   deployments: write
 
 env:
@@ -63,10 +63,12 @@ jobs:
         run: |
           sam deploy --region $REGION --parameter-overrides 'Email="${{ secrets.EMAIL }}"'
 
-          EC2_IP_ADDRESS=$(aws cloudformation describe-stacks --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`IPAddress`].OutputValue' --output text)
+          STACK_NAME=$(cat samconfig.toml| grep "stack_name =" | awk '{print $3}' | tr -d '"')
+
+          EC2_IP_ADDRESS=$(aws cloudformation describe-stacks --region $REGION --stack-name $STACK_NAME --query 'Stacks[0].Outputs[?OutputKey==`IPAddress`].OutputValue' --output text)
           echo "SERVER_IP=$EC2_IP_ADDRESS" >> $GITHUB_OUTPUT
 
-          KEY_PAIR_NAME=$(aws cloudformation describe-stacks --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`SSHKeyPairName`].OutputValue' --output text)
+          KEY_PAIR_NAME=$(aws cloudformation describe-stacks --region $REGION --stack-name $STACK_NAME --query 'Stacks[0].Outputs[?OutputKey==`SSHKeyPairName`].OutputValue' --output text)
           echo "KEY_PAIR_NAME=$KEY_PAIR_NAME" >> $GITHUB_OUTPUT
 
   start:
@@ -83,6 +85,9 @@ jobs:
         with:
           role-to-assume: ${{ secrets.IAM_ROLE_ARN }}
           aws-region: ${{ env.REGION }}
+
+      - name: Get current date & time for backup data
+        run: echo "TIMESTAMP=$(date '+%Y-%m-%d_%H-%M-%S')" >> $GITHUB_ENV
 
       - name: Start server
         id: start-server
@@ -123,4 +128,30 @@ jobs:
           ./manager.sh setup
           ./manager.sh start
           ./manager.sh startAutoShutdown
+
+          zip server.zip -r server
           "
+          
+      - name: Sync server data
+        env:
+          EC2_IP_ADDRESS: ${{ needs.deploy.outputs.SERVER_IP_ADDRESS }}
+        run: |
+          echo "Syncing server data"
+          scp -i key.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@$EC2_IP_ADDRESS:server.zip tmp.zip
+
+          unzip tmp.zip -d ${{ runner.temp }}
+          mkdir backups/$TIMESTAMP
+
+          cp ${{ runner.temp }}/server/*.json assets/.
+          cp ${{ runner.temp }}/server/server.properties assets/.
+          cp ${{ runner.temp }}/server/server-icon.png assets/.
+          cp -r ${{ runner.temp }}/server/logs backups/$TIMESTAMP
+          cp -r ${{ runner.temp }}/server/world backups/$TIMESTAMP
+
+
+      - name: 'Commit assets & backup'
+        uses: stefanzweifel/git-auto-commit-action@v4.16.0
+        with:
+          commit_message: "Sync server assets & create backup"
+          file_pattern: 'backups/* assets/*'
+
