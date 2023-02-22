@@ -129,7 +129,7 @@ jobs:
           ./manager.sh start
           ./manager.sh startAutoShutdown
 
-          zip server
+          zip server.zip -r server
           "
 
           scp -i "key.pem" -o StrictHostKeyChecking=no ubuntu@$EC2_IP_ADDRESS:server.zip backups/$TIMESTAMP.zip
