@@ -131,7 +131,14 @@ jobs:
 
           zip server.zip -r server
           "
+          
+      - name: Sync server data
+        env:
+          EC2_IP_ADDRESS: ${{ needs.deploy.outputs.SERVER_IP_ADDRESS }}
+        run: |
+          echo "Syncing server data"
           scp -i key.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@$EC2_IP_ADDRESS:server.zip tmp.zip
+
           unzip tmp.zip -d ${{ runner.temp }}
 
           mkdir backups/$TIMESTAMP
