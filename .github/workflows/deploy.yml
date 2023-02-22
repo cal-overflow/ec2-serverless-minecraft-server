@@ -63,10 +63,12 @@ jobs:
         run: |
           sam deploy --region $REGION --parameter-overrides 'Email="${{ secrets.EMAIL }}"'
 
-          EC2_IP_ADDRESS=$(aws cloudformation describe-stacks --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`IPAddress`].OutputValue' --output text)
+          STACK_NAME=$(cat samconfig.toml| grep "stack_name =" | awk '{print $3}' | tr -d '"')
+
+          EC2_IP_ADDRESS=$(aws cloudformation describe-stacks --region $REGION --stack-name $STACK_NAME --query 'Stacks[0].Outputs[?OutputKey==`IPAddress`].OutputValue' --output text)
           echo "SERVER_IP=$EC2_IP_ADDRESS" >> $GITHUB_OUTPUT
 
-          KEY_PAIR_NAME=$(aws cloudformation describe-stacks --region $REGION --query 'Stacks[0].Outputs[?OutputKey==`SSHKeyPairName`].OutputValue' --output text)
+          KEY_PAIR_NAME=$(aws cloudformation describe-stacks --region $REGION --stack-name $STACK_NAME --query 'Stacks[0].Outputs[?OutputKey==`SSHKeyPairName`].OutputValue' --output text)
           echo "KEY_PAIR_NAME=$KEY_PAIR_NAME" >> $GITHUB_OUTPUT
 
   start:
