@@ -27,6 +27,13 @@ setup() {
     echo "Docker install complete"
   fi
 
+  if ! [ -x "$(command -v zip)" ]; then 
+    echo "Installing zip"
+    sudo apt-get install zip -y
+
+    echo "zip install complete"
+  fi
+
   if ! [ -x "$(command -v ifconfig)" ]; then 
     echo "Installing network tools"
     sudo apt-get install net-tools
