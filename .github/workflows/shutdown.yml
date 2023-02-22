@@ -9,7 +9,6 @@ permissions:
 
 env:
   REGION: us-east-1
-  KEY_FILE: key-pair.pem
 
 jobs:
   shutdown:
@@ -39,6 +38,9 @@ jobs:
         env:
           EC2_IP_ADDRESS: ${{ steps.get-server-ip.outputs.SERVER_IP }}
         run: |
+          STACK_NAME=$(cat samconfig.toml| grep "stack_name =" | awk '{print $3}' | tr -d '"')
+
+          SSH_KEY_PAIR=$(aws cloudformation describe-stacks --region $REGION --stack-name $STACK_NAME --query 'Stacks[0].Outputs[?OutputKey==`SSHKeyPairName`].OutputValue' --output text)
           aws ssm get-parameter --name $SSH_KEY_PAIR --region $REGION --with-decryption --query 'Parameter.Value' --output text > key.pem
           chmod 600 key.pem
 
@@ -52,7 +54,7 @@ jobs:
           scp -i key.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@$EC2_IP_ADDRESS:server.zip tmp.zip
 
           echo "Shutting down EC2 instance"
-          ssh -i $KEY_FILE -o "StrictHostKeyChecking no" ubuntu@$EC2_IP_ADDRESS "
+          ssh -i key.pem -o "StrictHostKeyChecking no" ubuntu@$EC2_IP_ADDRESS "
           sudo shutdown now
           " || SSH_EXIT_CODE=$?
 
