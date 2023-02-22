@@ -47,10 +47,12 @@ jobs:
 
           echo "Zipping server data"
           zip server.zip -r server
+          "
+
           scp -i key.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@$EC2_IP_ADDRESS:server.zip tmp.zip
-          unzip tmp.zip -d ${{ runner.temp }}
 
           echo "Shutting down EC2 instance"
+          ssh -i $KEY_FILE -o "StrictHostKeyChecking no" ubuntu@$EC2_IP_ADDRESS "
           sudo shutdown now
           " || SSH_EXIT_CODE=$?
 
@@ -67,6 +69,7 @@ jobs:
         run: |
           echo "Syncing server data"
 
+          unzip tmp.zip -d ${{ runner.temp }}
           mkdir backups/$TIMESTAMP
 
           cp ${{ runner.temp }}/server/*.json assets/.
