@@ -143,6 +143,12 @@ jobs:
           git commit -m "Backup"
           git push
 
+
+      - name: Git Auto Commit
+        uses: stefanzweifel/git-auto-commit-action@v4.16.0
+        with:
+          commit_message: Backup
+
           # - name: Add & Commit server data
           #   uses: EndBug/add-and-commit@v9.1.1
           #   with:
