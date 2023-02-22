@@ -135,10 +135,14 @@ jobs:
           echo "Copying backup $TIMESTAMP"
 
           scp -i key.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@$EC2_IP_ADDRESS:server.zip backups/$TIMESTAMP.zip
+          ls
+          echo "BACKUPS dir:"
+          ls backups
 
       - name: Add & Commit server data
         uses: EndBug/add-and-commit@v9.1.1
         with:
           message: 'Automatic backup'
           add: 'backups/TIMESTAMP.zip'
-          default_author: github_actions
+          commiter_name: GitHub Actions
+          committer_email: actions@github.com
