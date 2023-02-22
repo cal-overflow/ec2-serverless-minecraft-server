@@ -2,7 +2,7 @@ name: Deploy & start server
 
 on: 
   push:
-    branches: ['main', 'auto-backup-server-data']
+    branches: ['main']
   workflow_dispatch:
 
 permissions:
