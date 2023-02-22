@@ -36,7 +36,6 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: ${{ needs.get-server-ip.outputs.SERVER_IP_ADDRESS }}
-      EC2_IP_ADDRESS: ${{ needs.get-server-ip.outputs.SERVER_IP_ADDRESS }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@master
@@ -49,6 +48,8 @@ jobs:
 
       - name: Perform data backup
         id: start-server
+        env:
+          EC2_IP_ADDRESS: ${{ needs.get-server-ip.outputs.SERVER_IP_ADDRESS }}
         run: |
           STACK_NAME=$(cat samconfig.toml| grep "stack_name =" | awk '{print $3}' | tr -d '"')
 
