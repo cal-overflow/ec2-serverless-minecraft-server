@@ -131,18 +131,18 @@ jobs:
 
           zip server.zip -r server
           "
-          rsync -e "ssh -i key.pem -o StrictHostKeyChecking=no" ubuntu@$EC2_IP_ADDRESS:server assets
-
-          scp -i key.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@$EC2_IP_ADDRESS:server.zip backups/$TIMESTAMP.zip
-          ls
+          scp -i key.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@$EC2_IP_ADDRESS:server.zip tmp.zip
+          mkdir backups/$TIMESTAMP
+          unzip tmp.zip -d backups/$TIMESTAMP
           echo "BACKUPS dir:"
           ls backups
+          
 
 
 
       - name: Git Auto Commit
         uses: stefanzweifel/git-auto-commit-action@v4.16.0
         with:
-          commit_message: Backup
+          commit_message: "Sync Server assets & create backup"
           file_pattern: 'backups/* assets/*'
 
