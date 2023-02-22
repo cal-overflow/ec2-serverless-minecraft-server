@@ -48,6 +48,7 @@ jobs:
           echo "Zipping server data"
           zip server.zip -r server
           scp -i key.pem -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null ubuntu@$EC2_IP_ADDRESS:server.zip tmp.zip
+          unzip tmp.zip -d ${{ runner.temp }}
 
           echo "Shutting down EC2 instance"
           sudo shutdown now
@@ -66,7 +67,6 @@ jobs:
         run: |
           echo "Syncing server data"
 
-          unzip tmp.zip -d ${{ runner.temp }}
           mkdir backups/$TIMESTAMP
 
           cp ${{ runner.temp }}/server/*.json assets/.
