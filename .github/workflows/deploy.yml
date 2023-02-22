@@ -139,9 +139,9 @@ jobs:
           echo "BACKUPS dir:"
           ls backups
 
-          git add backups/$TIMESTAMP.zip
-          git commit -m "Backup"
-          git push
+          # git add backups/$TIMESTAMP.zip
+          # git commit -m "Backup"
+          # git push
 
 
       - name: Git Auto Commit
