@@ -39,10 +39,10 @@ jobs:
         env:
           EC2_IP_ADDRESS: ${{ steps.get-server-ip.outputs.SERVER_IP }}
         run: |
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ${{ env.KEY_FILE }}
-          chmod 600 ${{ env.KEY_FILE }}
+          aws ssm get-parameter --name $SSH_KEY_PAIR --region $REGION --with-decryption --query 'Parameter.Value' --output text > key.pem
+          chmod 600 key.pem
 
-          ssh -i $KEY_FILE -o "StrictHostKeyChecking no" ubuntu@$EC2_IP_ADDRESS "
+          ssh -i key.pem -o "StrictHostKeyChecking no" ubuntu@$EC2_IP_ADDRESS "
           ./manager.sh stop
 
           echo "Zipping server data"
